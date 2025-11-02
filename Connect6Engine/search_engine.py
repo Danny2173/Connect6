@@ -232,7 +232,103 @@ class SearchEngine():
             
             return best_value, best_move
         
+    # Include two new parameters alpha and beta
+    def alphabeta(self, board, depth, color, maxi_player):
+        # Check game result
+        if (is_win_by_premove(board, StoneMove())):
+            return self.evaluate_position(board, color, StoneMove()), None
+        # DRAW CHECK
+        if is_draw(board):
+            return self.evaluate_position(board, color, StoneMove()), None
+        # Max depth reached
+        if depth <= 0:
+            return self.evaluate_position(board, color, StoneMove()), None
+        
+        # CANDIDATE PAIRS 
+        candidate_pairs = self.possible_moves(board)
+        if not candidate_pairs:
+            return self.evaluate_position(board, color, StoneMove()), None
 
+        # FOR MAXIMISING PLAYER
+        if maxi_player:
+            best_move = None
+            best_value = Defines.MININT
+            for move1, move2 in candidate_pairs:
+                # COPY BOARD
+                board_copy = [row[:] for row in board]
+
+                # CREATE DUMMY MOVES
+                dummy_move = StoneMove()
+                dummy_move.positions[0].x, dummy_move.positions[0].y = move1
+                if move2 is not None:
+                    dummy_move.positions[1].x, dummy_move.positions[1].y = move2
+                else:
+                    # IF FIRST MOVE
+                    dummy_move.positions[1].x, dummy_move.positions[1].y = -1, -1
+
+                # MAKE MOVE
+                make_move(board_copy,dummy_move, color)
+
+                # SWITCH COLOR
+                if color == Defines.BLACK:
+                    next_color = Defines.WHITE
+                else: 
+                    next_color = Defines.BLACK
+                
+                # NEXT MOVE - Update to include alpha and beta
+                value, _ = self.min_max(board_copy, depth - 1, alpha, beta, next_color, maxi_player=False)
+
+                # STORE BEST VALUE
+                if value > best_value:
+                    best_move = (move1, move2)
+                    best_value = value
+
+                # Update alpha then prune if necessary
+                alpha = max(alpha, best_value)
+                if alpha >= beta:
+                    break
+            return best_value, best_move
+        
+        # FOR MINIMIZING PLAYER
+        else:
+            best_move = None
+            best_value = Defines.MAXINT
+            for move1, move2 in candidate_pairs:
+                # COPY BOARD
+                board_copy = [row[:] for row in board]
+
+                # CREATE DUMMY MOVES
+                dummy_move = StoneMove()
+                dummy_move.positions[0].x, dummy_move.positions[0].y = move1
+                if move2 is not None:
+                    dummy_move.positions[1].x, dummy_move.positions[1].y = move2
+                else:
+                    # IF FIRST MOVE
+                    dummy_move.positions[1].x, dummy_move.positions[1].y = -1, -1
+
+                # MAKE MOVE
+                make_move(board_copy,dummy_move, color)
+
+                # SWITCH COLOR
+                if color == Defines.BLACK:
+                    next_color = Defines.WHITE
+                else: 
+                    next_color = Defines.BLACK
+
+                # NEXT MOVE - Update to include alpha and beta
+                value, _ = self.min_max(board_copy, depth - 1, alpha, beta, next_color, maxi_player=True)
+
+                # STORE BEST VALUE
+                if value < best_value:
+                    best_move = (move1, move2)
+                    best_value = value
+
+                # Update beta and prune if necessary
+                beta = min(beta, best_value)
+                if alpha >= beta:
+                    break
+            return best_value, best_move
+        
 def flush_output():
     import sys
     sys.stdout.flush()

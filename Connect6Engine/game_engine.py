@@ -107,7 +107,13 @@ class GameEngine:
 
         start = time.perf_counter()
         self.m_search_engine.before_search(self.m_board, self.m_chess_type, self.m_alphabeta_depth)
-        score, best_move = self.m_search_engine.min_max(self.m_board, self.m_alphabeta_depth, ourColor, True)
+
+        # Initialize alpha and beta values
+        alpha = Defines.MININT
+        beta  = Defines.MAXINT
+
+        # Update to include alpha and beta
+        score, best_move = self.m_search_engine.min_max(self.m_board, self.m_alphabeta_depth, alpha, beta, ourColor, True)
         
         if best_move is not None:
             bestMove.positions[0].x, bestMove.positions[0].y = best_move[0]
