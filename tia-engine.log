@@ -1,0 +1,17 @@
+[Fri Sep 26 17:45:39 202] - & C:/Users/user/AppData/Local/Programs/Python/Python312/python.exe c:/Users/user/Desktop/Python/Connect6Engine/main.py
+[Fri Sep 26 17:45:52 202] - & C:/Users/user/AppData/Local/Programs/Python/Python312/python.exe c:/Users/user/Desktop/Python/Connect6GUI/tournament.py
+[Fri Sep 26 17:49:25 202] - python ConnectMore.py
+[Fri Sep 26 17:49:41 202] - cd path/to/Connect6GUI
+[Fri Sep 26 17:50:04 202] - cd C:\Users\user\Desktop\Python\Connect6GUI
+[Fri Sep 26 17:50:23 202] - pip install -r requirements.txt
+[Fri Sep 26 17:50:24 202] - 
+[Fri Sep 26 17:50:42 202] - python ConnectMore.py
+[Fri Sep 26 17:50:42 202] - 
+[Fri Sep 26 18:10:52 202] - & C:/Users/user/AppData/Local/Programs/Python/Python312/python.exe c:/Users/user/Desktop/Python/Connect6GUI/ConnectMore.py
+[Tue Sep 30 18:39:05 202] - & C:/Users/user/AppData/Local/Programs/Python/Python312/python.exe c:/Users/user/Desktop/Python/Connect6Engine/main.py
+[Tue Sep 30 18:39:18 202] - & C:/Users/user/AppData/Local/Programs/Python/Python312/python.exe c:/Users/user/Desktop/Python/Connect6GUI/tournament.py
+[Tue Sep 30 18:39:25 202] - & C:/Users/user/AppData/Local/Programs/Python/Python312/python.exe c:/Users/user/Desktop/Python/Connect6GUI/ConnectMore.py
+[Tue Sep 30 18:39:30 202] - & C:/Users/user/AppData/Local/Programs/Python/Python312/python.exe c:/Users/user/Desktop/Python/Connect6GUI/ConnectMore.py
+[Tue Sep 30 19:48:04 202] - pip install -r requirements.txt
+[Tue Sep 30 19:48:04 202] - 
+[Tue Sep 30 19:51:07 202] - 
