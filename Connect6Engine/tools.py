@@ -132,3 +132,29 @@ def print_score(move_list, n):
             else:
                 print(f"{score:4}", end="")
         print()
+
+## Finding the longest line
+
+def longest_line(board, x, y, color):
+    # Define each direction
+    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+    # initialize length
+    length = 0
+    # For each direction, count the number of consecutive stones
+    for direction_x, direction_y in directions:
+        count = 1
+        i, j = x + direction_x, y + direction_y
+        # Check for valid position and ove in the positive direction
+        while isValidPos(i, j) and board[i][j] == color:
+            count += 1
+            i += direction_x
+            j += direction_y
+        i, j = x - direction_x, y - direction_y
+        # Check for valid position and move in the negative direction
+        while isValidPos(i, j) and board[i][j] == color:
+            count += 1
+            i -= direction_x
+            j -= direction_y
+        # Update maximum length
+        length = max(length, count)
+    return length

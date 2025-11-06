@@ -11,7 +11,7 @@ class GameEngine:
                 self.m_engine_name = name
             else:
                 print(f"Too long Engine Name: {name}, should be less than: {Defines.MSG_LENGTH}")
-        self.m_alphabeta_depth = 6
+        self.m_alphabeta_depth = 2
         self.m_board = t = [ [0]*Defines.GRID_NUM for i in range(Defines.GRID_NUM)]
         self.init_game()
         self.m_search_engine = SearchEngine()
@@ -40,10 +40,14 @@ class GameEngine:
 
     def run(self):
         msg = ""
-        # if sys.stdin.isatty():
-        #     self.on_help()
+        
+        if sys.stdin.isatty():
+            self.on_help()
         while True:
-            msg = input().strip()
+            try:
+                msg = input().strip()
+            except EOFError:
+                break
             log_to_file(msg)
             if msg == "name":
                 print(f"name {self.m_engine_name}")
@@ -113,7 +117,7 @@ class GameEngine:
         beta  = Defines.MAXINT
 
         # Update to include alpha and beta
-        score, best_move = self.m_search_engine.min_max(self.m_board, self.m_alphabeta_depth, alpha, beta, ourColor, True)
+        score, best_move = self.m_search_engine.alphabeta(self.m_board, self.m_alphabeta_depth, alpha, beta, ourColor, True)
         
         if best_move is not None:
             bestMove.positions[0].x, bestMove.positions[0].y = best_move[0]

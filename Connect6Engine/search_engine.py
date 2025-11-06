@@ -24,89 +24,34 @@ class SearchEngine():
         if is_draw(board):
             return 0
 
-        # Initialize evaluation scores
-        my_open = 0
-        opp_open = 0
+        # Initialize evaluation scores and weights
+        weights = {1: 10, 2: 100, 3: 1000, 4: 10000, 5: 100000}
+        my_score = 0
+        opp_score = 0
+        # define color
+        our_stone = color
+        opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
 
         # Loop through inside spaces (no edges)
         for i in range(1, len(board) - 1):
             for j in range(1, len(board[i]) - 1):
-                value = board[i][j]
                 # If no stone skip
-                if value == Defines.NOSTONE:
+                if board[i][j] == Defines.NOSTONE:
                     continue
-                
-                # List neighbors
-                neighbors = [
-                    board[i+1][j],
-                    board[i-1][j],
-                    board[i][j+1],
-                    board[i][j-1],
-                    board[i+1][j+1],
-                    board[i-1][j-1],
-                    board[i+1][j-1],
-                    board[i-1][j+1],
-                ]
-
-                # If any neighbor has no stone then add point
-                if any(n == Defines.NOSTONE for n in neighbors):
-                    if value == self.m_chess_type:
-                        my_open += 1
-                    else:
-                        opp_open += 1
-        return my_open - opp_open
-        # color_name = "Black" if self.m_chess_type == Defines.BLACK else "White"
-        # if my_open > opp_open:
-        #     return f"Engine winning! - {color_name} score: {my_open} | opponent score: {opp_open}"
-        # elif opp_open > my_open:
-        #     return f"Opponent winning! - {color_name} score: {my_open} | opponent score: {opp_open}"
-        # else:
-        #     return f"{color_name} score: {my_open} | opponent score: {opp_open}"
-    
+                # Check stone color
+                if board[i][j] == our_stone:
+                    # Find longest line for our color
+                    chain_length = longest_line(board, i, j, our_stone)
+                    if chain_length in weights:
+                        my_score += weights[chain_length]
+                elif board[i][j] == opp_stone:
+                    # Find longest line for opponent color
+                    chain_length = longest_line(board, i, j, opp_stone)
+                    if chain_length in weights:
+                        opp_score += weights[chain_length] 
+        return my_score - opp_score
    
-    def alpha_beta_search(self, depth, alpha, beta, ourColor, bestMove, preMove):
-    
-        #Check game result
-        if (is_win_by_premove(self.m_board, preMove)):
-            if (ourColor == self.m_chess_type):
-                #Opponent wins.
-                return Defines.MININT
-            else:
-                #Self wins.
-                return Defines.MAXINT
-        # DRAW CHECK
-        if is_draw(self.m_board):
-            return 0
-        
-        alpha = 0
-        if(self.check_first_move()):
-            bestMove.positions[0].x = 10
-            bestMove.positions[0].y = 10
-            bestMove.positions[1].x = 10
-            bestMove.positions[1].y = 10
-        else:
-            
-            pairs = self.possible_moves()
-            if not pairs:
-                return 0
-            move1, move2 = pairs[0]
-            bestMove.positions[0].x = move1[0]
-            bestMove.positions[0].y = move1[1]
-            bestMove.positions[1].x = move1[0]
-            bestMove.positions[1].y = move1[1]
-            make_move(self.m_board,bestMove,ourColor)
-            
-            if is_win_by_premove(self.m_board, bestMove):
-                # Self wins — return a high score
-                return +1
-            
-            bestMove.positions[1].x = move2[0]
-            bestMove.positions[1].y = move2[1]
-            make_move(self.m_board,bestMove,ourColor)
-
-        score = self.evaluate_position(self.m_board, ourColor, bestMove)
-        return score
-        
+       
     def check_first_move(self):
         for i in range(1,len(self.m_board)-1):
             for j in range(1, len(self.m_board[i])-1):
@@ -121,21 +66,38 @@ class SearchEngine():
                     return (i,j)
         return (-1,-1)
     
-    ## POSSIBLE MOVES (NAIVE - Subset of 30)
-    def possible_moves(self, board, max=2):
-        # List of empty cells
-        empty_list = []
-        for i, row in enumerate(board):
-            for j, value in enumerate(row):
-                if value == Defines.NOSTONE:
-                    empty_list.append((i,j))
+
+    ## POSSIBLE MOVES (Improved next moves - Subset of 6)
+    def possible_moves(self, board, color, limit=6):
 
         # CHECK IF FIRST MOVE
         if self.check_first_move():
             center = (9, 9)
             return [((center), None)]
-        # Select subset
-        candidates = empty_list[:max]
+        
+        # define color
+        our_stone = color
+        opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
+
+        # Initialize scored moves list
+        scored = []
+
+        # For each empty position
+        for i in range(1, len(board) - 1):
+            for j in range(1, len(board[i]) - 1):
+                if board[i][j] == Defines.NOSTONE:
+                    # Find longest line for both players
+                    my_chain = longest_line(board, i, j, our_stone)
+                    opp_chain = longest_line(board, i, j, opp_stone)
+                    # Score is the max of both
+                    score = max(my_chain, opp_chain)
+                    # Append to scored list
+                    scored.append(((i, j), score))
+
+        # Sort by score descending
+        scored.sort(key=lambda x: x[1], reverse=True)
+        # Select top max moves
+        candidates = [pos for pos, score in scored[:limit]]                 
 
         # Create move pairs
         candidate_pairs = []
@@ -157,7 +119,7 @@ class SearchEngine():
             return self.evaluate_position(board, color, StoneMove()), None
         
         # CANDIDATE PAIRS 
-        candidate_pairs = self.possible_moves(board)
+        candidate_pairs = self.possible_moves(board, color)
         if not candidate_pairs:
             return self.evaluate_position(board, color, StoneMove()), None
 
@@ -233,7 +195,7 @@ class SearchEngine():
             return best_value, best_move
         
     # Include two new parameters alpha and beta
-    def alphabeta(self, board, depth, color, maxi_player):
+    def alphabeta(self, board, depth, alpha, beta, color, maxi_player):
         # Check game result
         if (is_win_by_premove(board, StoneMove())):
             return self.evaluate_position(board, color, StoneMove()), None
@@ -245,7 +207,7 @@ class SearchEngine():
             return self.evaluate_position(board, color, StoneMove()), None
         
         # CANDIDATE PAIRS 
-        candidate_pairs = self.possible_moves(board)
+        candidate_pairs = self.possible_moves(board, color)
         if not candidate_pairs:
             return self.evaluate_position(board, color, StoneMove()), None
 
@@ -276,7 +238,7 @@ class SearchEngine():
                     next_color = Defines.BLACK
                 
                 # NEXT MOVE - Update to include alpha and beta
-                value, _ = self.min_max(board_copy, depth - 1, alpha, beta, next_color, maxi_player=False)
+                value, _ = self.alphabeta(board_copy, depth - 1, alpha, beta, next_color, maxi_player=False)
 
                 # STORE BEST VALUE
                 if value > best_value:
@@ -316,7 +278,7 @@ class SearchEngine():
                     next_color = Defines.BLACK
 
                 # NEXT MOVE - Update to include alpha and beta
-                value, _ = self.min_max(board_copy, depth - 1, alpha, beta, next_color, maxi_player=True)
+                value, _ = self.alphabeta(board_copy, depth - 1, alpha, beta, next_color, maxi_player=True)
 
                 # STORE BEST VALUE
                 if value < best_value:
