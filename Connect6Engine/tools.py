@@ -158,3 +158,103 @@ def longest_line(board, x, y, color):
         # Update maximum length
         length = max(length, count)
     return length
+
+def half_move_evaluation(board, i, j, color):
+
+    ## Liu's half-move evaluation
+    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]  # directions
+    our_stone = color
+    opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
+    epsilon = 0.2   # decay
+    w_self = 3.0    # multiplier for own stone
+    score = 0.0
+
+    for direction_x, direction_y in directions:
+        # Forward and backward
+        for sign in [1, -1]:
+            value = 1.0
+            x, y = i + direction_x*sign, j + direction_y*sign
+            # 5 steps outward 
+            for step in range(1, 6):
+                # If cell empty multiple by small decay
+                if board[x][y] == Defines.NOSTONE:
+                    value *= epsilon
+                # If contains players own stone multiply by higher weight
+                elif board[x][y] == our_stone:
+                    value *= w_self
+                else:  # opp stone 
+                    break
+                x += direction_x*sign
+                y += direction_y*sign
+            # Total score
+            score += value
+    return score
+
+    # Finding how many open ends in threat
+def count_open_ends(board, chain, color):
+
+    # Base case
+    if not chain:
+        return 0
+    
+    # Coordinates of start and end of the chain
+    chain = sorted(chain)
+    (x1, y1), (x2, y2) = chain[0], chain[-1]
+
+    # Direction vector
+    direction_x = x2 - x1
+    direction_y = y2 - y1
+
+    # Normalize
+    direction_x = 0 if direction_x == 0 else int(direction_x / abs(direction_x))
+    direction_y = 0 if direction_y == 0 else int(direction_y / abs(direction_y))
+
+    # Initialize count
+    open_ends = 0
+
+    # Forward (same direction)
+    forward_x, forward_y = x2 + direction_x, y2 + direction_y
+    if board[forward_x][forward_y] == Defines.NOSTONE:
+        open_ends += 1
+
+    # Backward (opposite direction)
+    backward_x, backward_y = x1 - direction_x, y1 - direction_y
+    if board[backward_x][backward_y] == Defines.NOSTONE:
+        open_ends += 1
+
+    return open_ends
+
+# Find live threats (chains with open ends)
+
+def find_live_threats(board, color, min_length = 3):
+
+    # Initialize 
+    open_threats = []
+    visited = set()
+    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+    # For each position
+    for i in range(1, len(board) - 1):
+        for j in range(1, len(board[i]) - 1):
+            # If position not visited 
+            if board[i][j] != color or (i, j) in visited:
+                continue
+
+            # explore each direction, starting a chain
+            for direction_x, direction_y in directions:
+                chain = [(i, j)]
+                x, y = i + direction_x, j + direction_y
+
+                # Extend while stones continue in this direction
+                while board[x][y] == color:
+                    chain.append((x, y))
+                    visited.add((x, y))
+                    x += direction_x
+                    y += direction_y
+
+                # If length of chain satisfies min length and has open end
+                if len(chain) >= min_length:
+                    open_ends = count_open_ends(board, chain, color)
+                    if open_ends > 0:
+                        open_threats.append((chain, open_ends))
+    return open_threats
