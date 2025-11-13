@@ -249,6 +249,11 @@ class SearchEngine():
                 alpha = max(alpha, best_value)
                 if alpha >= beta:
                     break
+            # Fallback
+            if best_move is None:
+                p1 = self.find_possible_move()
+                p2 = self.find_possible_move()
+                best_move = (p1, p2)
             return best_value, best_move
         
         # FOR MINIMIZING PLAYER
@@ -289,7 +294,17 @@ class SearchEngine():
                 beta = min(beta, best_value)
                 if alpha >= beta:
                     break
+
+            # Fallback if no legal move was selected
+            if best_move is None:
+                # find any available single move
+                p1 = self.find_possible_move()
+                p2 = self.find_possible_move()
+                # build as a pair
+                best_move = (p1, p2)
+
             return best_value, best_move
+
         
 def flush_output():
     import sys
