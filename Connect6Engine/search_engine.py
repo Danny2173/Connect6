@@ -1,4 +1,5 @@
 from tools import *
+import random
 
 class SearchEngine():
     def __init__(self):
@@ -6,6 +7,18 @@ class SearchEngine():
         self.m_chess_type = None
         self.m_alphabeta_depth = None
         self.m_total_nodes = 0
+        # Initialize weights
+        self.weight_ch = 1.0
+        self.weight_dir = 0.1
+        self.weight_def = 200
+
+        # Initialize Transposition table and Zobrist table
+        self.TT = {}
+        self.z_table = {}
+        for x in range(Defines.GRID_NUM):
+            for y in range(Defines.GRID_NUM):
+                self.z_table[(x, y, Defines.BLACK)] = random.getrandbits(64)
+                self.z_table[(x, y, Defines.WHITE)] = random.getrandbits(64)
 
     def before_search(self, board, color, alphabeta_depth):
         self.m_board = [row[:] for row in board]
@@ -18,8 +31,8 @@ class SearchEngine():
         if is_win_by_premove(board, bestMove):
             if color == self.m_chess_type:
                 return Defines.MAXINT
-            else:
-                return Defines.MININT
+            # else:
+            #     return Defines.MININT
             
         if is_draw(board):
             return 0
@@ -75,10 +88,10 @@ class SearchEngine():
         for chain, open_ends in find_live_threats(board, opp_stone):
             stones_required += open_ends
 
-        # Weights
-        weight_chain = 1.0
-        weight_direction = 0.1
-        weight_defensive = 200
+        # Change weights to allow for dynamic adaptation
+        weight_chain = self.weight_ch
+        weight_direction = self.weight_dir
+        weight_defensive = self.weight_def
 
         # Final evaluation score
         evaluation_score = (weight_chain*(my_score - opp_score)
@@ -115,35 +128,50 @@ class SearchEngine():
         our_stone = color
         opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
         
+        # ADD neighbour pruning
+        neighbour_moves = set()
+
+        # for each playable cell
+        for x in range(1, len(board)-1):
+            for y in range(1, len(board)-1):
+                if board[x][y] != Defines.NOSTONE:
+                    # scan with a radius 2 near stones
+                    for dx in range(-2, 3):
+                        for dy in range(-2, 3):
+                            nx, ny = x + dx, y + dy
+                            if isValidPos(nx, ny) and board[nx][ny] == Defines.NOSTONE:
+                                neighbour_moves.add((nx, ny))
+
+        # fallback early in game
+        if not neighbour_moves:
+            neighbour_moves = {(9, 9)}
         # Initialize our defensive moves list
         critical_threats = []
         # Initialize scored moves list
         scored = []
 
         # For each empty position
-        for i in range(1, len(board) - 1):
-            for j in range(1, len(board[i]) - 1):
-                if board[i][j] == Defines.NOSTONE:
-                    
-                    # Find longest line for both players
-                    my_chain = longest_line(board, i, j, our_stone)
-                    # Pre-score instant win check
-                    if my_chain >= 5:
-                        return [((i, j), None)] 
-                    opp_chain = longest_line(board, i, j, opp_stone)
-                    # Pre-score instant loss check (collect if more than one)
-                    if opp_chain >= 5:
-                        return critical_threats.append(((i, j), None))
-                    
-                    # Priority scoring system based on potential
-                    score = my_chain * 10 + opp_chain * 5
-                    # Ensuring moves that create chains of 4+ are prioritized
-                    if my_chain >= 4:
-                        score += 50
-                    # # Score is the max of both
-                    # score = max(my_chain, opp_chain)
-                    # Append to scored list
-                    scored.append(((i, j), score))
+        for (i, j) in neighbour_moves:           
+            # Find longest line for both players
+            my_chain = longest_line(board, i, j, our_stone)
+            # Pre-score instant win check
+            if my_chain >= 5:
+                return [((i, j), None)] 
+            opp_chain = longest_line(board, i, j, opp_stone)
+            # Pre-score instant loss check (collect if more than one)
+            if opp_chain >= 5:
+                critical_threats.append(((i, j), None))
+                continue
+            
+            # Priority scoring system based on potential
+            score = my_chain * 10 + opp_chain * 5
+            # Ensuring moves that create chains of 4+ are prioritized
+            if my_chain >= 4:
+                score += 50
+            # # Score is the max of both
+            # score = max(my_chain, opp_chain)
+            # Append to scored list
+            scored.append(((i, j), score))
 
         # If there exists critical list use this for candidate pairs
         if critical_threats:
@@ -194,8 +222,12 @@ class SearchEngine():
                     # IF FIRST MOVE
                     dummy_move.positions[1].x, dummy_move.positions[1].y = -1, -1
 
+
                 # MAKE MOVE
                 make_move(board_copy,dummy_move, color)
+
+                if depth <= 0:
+                    return self.evaluate_position(board_copy, color, dummy_move), None
 
                 # SWITCH COLOR
                 if color == Defines.BLACK:
@@ -250,6 +282,14 @@ class SearchEngine():
         
     # Include two new parameters alpha and beta
     def alphabeta(self, board, depth, alpha, beta, color, maxi_player):
+
+        # Zobrist Hash lookup
+        zob = self.compute_hash(board, color)
+        if zob in self.TT:
+            stored_depth, stored_value, stored_move = self.TT[zob]
+            if stored_depth >= depth:
+                return stored_value, stored_move
+    
         # Check game result
         if (is_win_by_premove(board, StoneMove())):
             return self.evaluate_position(board, color, StoneMove()), None
@@ -285,6 +325,9 @@ class SearchEngine():
                 # MAKE MOVE
                 make_move(board_copy,dummy_move, color)
 
+                if is_win_by_premove(board_copy, dummy_move):
+                    return self.evaluate_position(board_copy, color, dummy_move), (move1, move2)               
+                
                 # SWITCH COLOR
                 if color == Defines.BLACK:
                     next_color = Defines.WHITE
@@ -302,7 +345,11 @@ class SearchEngine():
                 # Update alpha then prune if necessary
                 alpha = max(alpha, best_value)
                 if alpha >= beta:
+                    # store before pruning
+                    self.TT[zob] = (depth, best_value, best_move)
                     break
+
+            self.TT[zob] = (depth, best_value, best_move)
             return best_value, best_move
         
         # FOR MINIMIZING PLAYER
@@ -325,6 +372,8 @@ class SearchEngine():
                 # MAKE MOVE
                 make_move(board_copy,dummy_move, color)
 
+                if is_win_by_premove(board_copy, dummy_move):
+                    return self.evaluate_position(board_copy, color, dummy_move), (move1, move2)
                 # SWITCH COLOR
                 if color == Defines.BLACK:
                     next_color = Defines.WHITE
@@ -342,9 +391,22 @@ class SearchEngine():
                 # Update beta and prune if necessary
                 beta = min(beta, best_value)
                 if alpha >= beta:
+                    # store before pruning
+                    self.TT[zob] = (depth, best_value, best_move)
                     break
+            self.TT[zob] = (depth, best_value, best_move)
             return best_value, best_move
-        
+    
+    def compute_hash(self, board, color):
+        h = 0
+        for x in range(1, Defines.GRID_NUM - 1):
+            for y in range(1, Defines.GRID_NUM - 1):
+                c = board[x][y]
+                if c == Defines.BLACK or c == Defines.WHITE:
+                    h ^= self.z_table[(x, y, c)]
+        h ^= (color * 1315423911)
+        return h
+
 def flush_output():
     import sys
     sys.stdout.flush()
