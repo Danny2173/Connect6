@@ -110,7 +110,8 @@ class GameEngine:
         end = 0
 
         start = time.perf_counter()
-        self.m_search_engine.before_search(self.m_board, self.m_chess_type, self.m_alphabeta_depth)
+        self.m_search_engine.before_search(self.m_board, ourColor, self.m_alphabeta_depth)
+
 
         # Initialize alpha and beta values
         alpha = Defines.MININT
