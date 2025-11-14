@@ -124,6 +124,9 @@ class SearchEngine():
     ## POSSIBLE MOVES (NAIVE - Subset of 30)
     def possible_moves(self, board, max=2):
         # List of empty cells
+        if board is None:
+            board = self.m_board
+    
         empty_list = []
         for i, row in enumerate(board):
             for j, value in enumerate(row):
@@ -133,7 +136,7 @@ class SearchEngine():
         # CHECK IF FIRST MOVE
         if self.check_first_move():
             center = (9, 9)
-            return [((center), None)]
+            return [((center, center))]
         # Select subset
         candidates = empty_list[:max]
 
