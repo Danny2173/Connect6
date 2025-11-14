@@ -11,6 +11,7 @@ class GameEngine:
                 self.m_engine_name = name
             else:
                 print(f"Too long Engine Name: {name}, should be less than: {Defines.MSG_LENGTH}")
+
         self.m_alphabeta_depth = 6
         self.m_board = [[0]*Defines.GRID_NUM for _ in range(Defines.GRID_NUM)]
         self.init_game()
@@ -38,7 +39,6 @@ class GameEngine:
         )
 
     def run(self):
-        # Print help ONLY if run manually (not GUI)
         if sys.stdin.isatty():
             self.on_help()
 
@@ -46,7 +46,7 @@ class GameEngine:
             try:
                 msg = input().strip()
             except EOFError:
-                return 0  # prevent PyInstaller crash
+                return 0
 
             log_to_file(msg)
 
@@ -76,6 +76,7 @@ class GameEngine:
                 self.m_chess_type = Defines.WHITE
 
             elif msg == "next":
+                # Flip color (black=1 white=2)
                 self.m_chess_type = self.m_chess_type ^ 3
                 if self.search_a_move(self.m_chess_type, self.m_best_move):
                     make_move(self.m_board, self.m_best_move, self.m_chess_type)
@@ -96,8 +97,10 @@ class GameEngine:
             elif msg.startswith("move"):
                 self.m_best_move = msg2move(msg[5:])
                 make_move(self.m_board, self.m_best_move, self.m_chess_type ^ 3)
+
                 if is_win_by_premove(self.m_board, self.m_best_move):
                     print("We lost!")
+
                 if self.search_a_move(self.m_chess_type, self.m_best_move):
                     print(f"move {move2msg(self.m_best_move)}")
                     make_move(self.m_board, self.m_best_move, self.m_chess_type)
@@ -117,12 +120,22 @@ class GameEngine:
     def search_a_move(self, ourColor, bestMove):
         start = time.perf_counter()
 
+        # IMPORTANT: must pass ourColor (player to move)
         self.m_search_engine.before_search(
-            self.m_board, self.m_chess_type, self.m_alphabeta_depth
+            self.m_board, ourColor, self.m_alphabeta_depth
         )
 
-        score, best_move = self.m_search_engine.min_max(
-            self.m_board, self.m_alphabeta_depth, ourColor, True
+        alpha = Defines.MININT
+        beta  = Defines.MAXINT
+
+        # Correct alphabeta call signature
+        score, best_move = self.m_search_engine.alphabeta(
+            self.m_board,
+            self.m_alphabeta_depth,
+            alpha,
+            beta,
+            ourColor,
+            True
         )
 
         if best_move is not None:
