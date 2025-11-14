@@ -199,18 +199,18 @@ class SearchEngine():
     def alphabeta(self, board, depth, alpha, beta, color, maxi_player):
         # Check game result
         if (is_win_by_premove(board, StoneMove())):
-            return self.evaluate_position(board, None, StoneMove()), None
+            return self.evaluate_position(board, color, StoneMove()), None   # FIXED
         # DRAW CHECK
         if is_draw(board):
-            return self.evaluate_position(board, None, StoneMove()), None
+            return self.evaluate_position(board, color, StoneMove()), None   # FIXED
         # Max depth reached
         if depth <= 0:
-            return self.evaluate_position(board, None, StoneMove()), None
+            return self.evaluate_position(board, color, StoneMove()), None   # FIXED
         
         # CANDIDATE PAIRS 
         candidate_pairs = self.possible_moves(board, color)
         if not candidate_pairs:
-            return self.evaluate_position(board, None, StoneMove()), None
+            return self.evaluate_position(board, color, StoneMove()), None   # FIXED
 
         # FOR MAXIMISING PLAYER
         if maxi_player:
