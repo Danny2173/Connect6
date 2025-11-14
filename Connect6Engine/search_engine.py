@@ -13,7 +13,8 @@ class SearchEngine():
         self.m_alphabeta_depth = alphabeta_depth
         self.m_total_nodes = 0
 
-    def evaluate_position(self, board, color, bestMove):
+    def evaluate_position(self, board, _, bestMove):
+        color = self.m_chess_type
         #Check game result
         if is_win_by_premove(board, bestMove):
             if color == self.m_chess_type:
@@ -110,18 +111,18 @@ class SearchEngine():
     def min_max(self, board, depth, color, maxi_player):
         # Check game result
         if (is_win_by_premove(board, StoneMove())):
-            return self.evaluate_position(board, color, StoneMove()), None
+            return self.evaluate_position(board, None, StoneMove()), None
         # DRAW CHECK
         if is_draw(board):
-            return self.evaluate_position(board, color, StoneMove()), None
+            return self.evaluate_position(board, None, StoneMove()), None
         # Max depth reached
         if depth <= 0:
-            return self.evaluate_position(board, color, StoneMove()), None
+            return self.evaluate_position(board, None, StoneMove()), None
         
         # CANDIDATE PAIRS 
         candidate_pairs = self.possible_moves(board, color)
         if not candidate_pairs:
-            return self.evaluate_position(board, color, StoneMove()), None
+            return self.evaluate_position(board, None, StoneMove()), None
 
         # FOR MAXIMISING PLAYER
         if maxi_player:
@@ -198,18 +199,18 @@ class SearchEngine():
     def alphabeta(self, board, depth, alpha, beta, color, maxi_player):
         # Check game result
         if (is_win_by_premove(board, StoneMove())):
-            return self.evaluate_position(board, color, StoneMove()), None
+            return self.evaluate_position(board, None, StoneMove()), None
         # DRAW CHECK
         if is_draw(board):
-            return self.evaluate_position(board, color, StoneMove()), None
+            return self.evaluate_position(board, None, StoneMove()), None
         # Max depth reached
         if depth <= 0:
-            return self.evaluate_position(board, color, StoneMove()), None
+            return self.evaluate_position(board, None, StoneMove()), None
         
         # CANDIDATE PAIRS 
         candidate_pairs = self.possible_moves(board, color)
         if not candidate_pairs:
-            return self.evaluate_position(board, color, StoneMove()), None
+            return self.evaluate_position(board, None, StoneMove()), None
 
         # FOR MAXIMISING PLAYER
         if maxi_player:
