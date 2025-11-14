@@ -14,79 +14,92 @@ class SearchEngine():
         self.m_total_nodes = 0
 
     def evaluate_position(self, board, color, bestMove):
-        #Check game result
+        # 1. Terminal check first (same as before)
         if is_win_by_premove(board, bestMove):
             if color == self.m_chess_type:
                 return Defines.MAXINT
             else:
                 return Defines.MININT
-            
+
         if is_draw(board):
             return 0
 
-        # Initialize evaluation scores and weights
-        weights = {1: 10, 2: 100, 3: 1000, 4: 10000, 5: 100000}
-        my_score = 0
-        opp_score = 0
-        my_dir_score = 0
-        opp_dir_score = 0
+        # ---------- PARAMETERS / WEIGHTS ----------
+        chain_weights = {
+            1: 5,
+            2: 30,
+            3: 150,
+            4: 1000,
+            5: 20000
+        }
 
-        # define color
+        MOBILITY_WEIGHT = 0.5
+        DEFENSE_WEIGHT = 15
+
+        my_chain_score = 0
+        opp_chain_score = 0
+        mobility_score = 0.0
+
         our_stone = color
         opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
 
-        # Counters for chains
-        my_chains = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-        opp_chains = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        rows = len(board)
+        cols = len(board[0]) if rows > 0 else 0
 
-        # Loop through inside spaces (no edges)
-        for i in range(1, len(board) - 1):
-            for j in range(1, len(board[i]) - 1):
-                # If no stone skip
-                if board[i][j] == Defines.NOSTONE:
-                    # Half move evaluation (Liu)
-                    my_dir_score += half_move_evaluation(board, i, j, our_stone)
-                    opp_dir_score += half_move_evaluation(board, i, j, opp_stone)
+        # ---------- MAIN BOARD LOOP ----------
+        for i in range(1, rows - 1):
+            for j in range(1, cols - 1):
+
+                cell = board[i][j]
+
+                # Empty → half-move mobility
+                if cell == Defines.NOSTONE:
+                    my_dir = half_move_evaluation(board, i, j, our_stone)
+                    opp_dir = half_move_evaluation(board, i, j, opp_stone)
+                    mobility_score += (my_dir - opp_dir)
                     continue
-                # Check stone color
-                if board[i][j] == our_stone:
-                    # Find longest line for our color
-                    chain_length = longest_line(board, i, j, our_stone)
-                    # Error prevention
-                    if chain_length > 5:
-                        chain_length = 5
-                    # Store chain length
-                    my_chains[chain_length] += 1
-                elif board[i][j] == opp_stone:
-                    # Find longest line for opponent color
-                    chain_length = longest_line(board, i, j, opp_stone)
-                    # Error prevention
-                    if chain_length > 5:
-                        chain_length = 5
-                    # Store chain length
-                    opp_chains[chain_length] += 1
-        
-        # Calculating weighted score
-        my_score = sum(weights[c] * my_chains[c] for c in my_chains)
-        opp_score = sum(weights[c] * opp_chains[c] for c in opp_chains)
 
-        # Defensive threat score - Stones needed to defend
-        stones_required = 0
-        for chain, open_ends in find_live_threats(board, opp_stone):
-            stones_required += open_ends
+                # Stones
+                if cell == our_stone:
+                    chain_len = min(longest_line(board, i, j, our_stone), 5)
+                    if chain_len >= 1:
+                        my_chain_score += chain_weights.get(chain_len, 0)
 
-        # Weights
-        weight_chain = 1.0
-        weight_direction = 0.1
-        weight_defensive = 200
+                elif cell == opp_stone:
+                    chain_len = min(longest_line(board, i, j, opp_stone), 5)
+                    if chain_len >= 1:
+                        opp_chain_score += chain_weights.get(chain_len, 0)
 
-        # Final evaluation score
-        evaluation_score = (weight_chain*(my_score - opp_score)
-                            + weight_direction*(my_dir_score - opp_dir_score)
-                            - weight_defensive*stones_required
-        )
-        return evaluation_score
-   
+        # ---------- THREAT EVALUATION (SAFE) ----------
+        max_threat_value = 0.0
+
+        threat_list = find_live_threats(board, opp_stone)
+
+        if isinstance(threat_list, list):
+            for item in threat_list:
+                # Ensure it is a 2-item tuple/list of ints
+                if (isinstance(item, (list, tuple)) 
+                        and len(item) == 2):
+
+                    try:
+                        chain = int(item[0])
+                        open_ends = int(item[1])
+                        threat_value = chain * open_ends
+                        if threat_value > max_threat_value:
+                            max_threat_value = threat_value
+                    except:
+                        # malformed entry, skip
+                        continue
+
+        threat_penalty = DEFENSE_WEIGHT * max_threat_value
+
+        # ---------- FINAL SCORE ----------
+        base_score = my_chain_score - opp_chain_score
+        mobility_component = MOBILITY_WEIGHT * mobility_score
+
+        final_score = base_score + mobility_component - threat_penalty
+        return final_score
+
 
     def check_first_move(self):
         for i in range(1,len(self.m_board)-1):
@@ -103,68 +116,168 @@ class SearchEngine():
         return (-1,-1)
     
 
-        ## POSSIBLE MOVES (Improved next moves - Subset of 6)
+    #     ## POSSIBLE MOVES (Improved next moves - Subset of 6)
+    # def possible_moves(self, board, color, limit=8):
+    #     """
+    #     Stronger generator:
+    #     1. Always include critical defensive blocks
+    #     2. Always include immediate winning moves
+    #     3. Then add top-scoring candidates
+    #     """
+
+    #     # First move → special rule
+    #     if self.check_first_move():
+    #         return [((9, 9), None)]
+
+    #     our_stone = color
+    #     opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
+
+    #     winning_moves = []
+    #     defensive_moves = []
+    #     scored = []
+
+    #     # Scan whole board
+    #     for i in range(1, len(board)-1):
+    #         for j in range(1, len(board[i])-1):
+    #             if board[i][j] != Defines.NOSTONE:
+    #                 continue
+
+    #             # check our potential
+    #             my_chain = longest_line(board, i, j, our_stone)
+    #             if my_chain >= 5:
+    #                 # we can win instantly
+    #                 winning_moves.append(((i, j), None))
+    #                 continue
+
+    #             # check opponent threats
+    #             opp_chain = longest_line(board, i, j, opp_stone)
+    #             if opp_chain >= 5:
+    #                 # opponent is threatening win; must block
+    #                 defensive_moves.append(((i, j), None))
+    #                 continue
+
+    #             # scoring
+    #             score = (my_chain * 12) + (opp_chain * 20)
+    #             # give more priority to defense (opp threats)
+    #             if opp_chain >= 4:
+    #                 score += 200
+    #             if my_chain >= 4:
+    #                 score += 80
+
+    #             scored.append(((i, j), score))
+
+    #     # If we can win, return only winning moves
+    #     if winning_moves:
+    #         return winning_moves[:limit]
+
+    #     # If opponent can win, return only defensive moves
+    #     if defensive_moves:
+    #         return defensive_moves[:limit]
+
+    #     # sort candidates
+    #     scored.sort(key=lambda x: x[1], reverse=True)
+    #     top = [pos for pos, _ in scored[:limit]]
+
+    #     # generate pairs
+    #     pairs = []
+    #     for a in range(len(top)):
+    #         for b in range(a+1, len(top)):
+    #             pairs.append((top[a], top[b]))
+
+    #     if not pairs:
+    #         # fallback single
+    #         return [(top[0], None)]
+
+    #     return pairs
+
     def possible_moves(self, board, color, limit=6):
+        """
+        Fast + safe move generator:
+        - Only consider empty cells near existing stones (radius=2)
+        - Prioritize immediate wins and forced defenses
+        - Hard cap to 'limit' moves so alpha-beta never explodes
+        - Always returns list of (pos1, pos2) pairs OR [(pos, None)]
+        """
 
-        # CHECK IF FIRST MOVE
+        # First move
         if self.check_first_move():
-            center = (9, 9)
-            return [((center), None)]
+            return [((9, 9), None)]
 
-        our_stone = color
-        opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
+        our = color
+        opp = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
 
-        critical_threats = []
+        rows = len(board)
+
+        # --- STEP 1: find all existing stones ---
+        stones = []
+        for i in range(1, rows - 1):
+            for j in range(1, rows - 1):
+                if board[i][j] != Defines.NOSTONE:
+                    stones.append((i, j))
+
+        if not stones:
+            return [((9, 9), None)]
+
+        # --- STEP 2: generate candidates near stones (radius=2) ---
+        candidates = set()
+        for (sx, sy) in stones:
+            for dx in range(-2, 3):
+                for dy in range(-2, 3):
+                    x, y = sx + dx, sy + dy
+                    if 1 <= x < rows - 1 and 1 <= y < rows - 1:
+                        if board[x][y] == Defines.NOSTONE:
+                            candidates.add((x, y))
+
+        candidates = list(candidates)
+
+        winning = []
+        defending = []
         scored = []
 
-        for i in range(1, len(board) - 1):
-            for j in range(1, len(board[i]) - 1):
-                if board[i][j] == Defines.NOSTONE:
+        # --- STEP 3: classify candidates ---
+        for (i, j) in candidates:
 
-                    my_chain = longest_line(board, i, j, our_stone)
-                    if my_chain >= 5:
-                        return [((i, j), None)]
+            myL = longest_line(board, i, j, our)
+            if myL >= 5:
+                winning.append(((i, j), None))
+                continue
 
-                    opp_chain = longest_line(board, i, j, opp_stone)
-                    if opp_chain >= 5:
-                        critical_threats.append(((i, j), None))
-                        continue
+            oppL = longest_line(board, i, j, opp)
+            if oppL >= 5:
+                defending.append(((i, j), None))
+                continue
 
-                    score = my_chain * 10 + opp_chain * 5
-                    if my_chain >= 4:
-                        score += 50
+            score = myL * 12 + oppL * 20
+            if oppL >= 4:
+                score += 200
+            if myL >= 4:
+                score += 80
 
-                    scored.append(((i, j), score))
+            scored.append(((i, j), score))
 
-        # Threat blocks
-        if critical_threats:
-            return critical_threats[:limit]
+        # --- STEP 4: forced wins take priority ---
+        if winning:
+            return winning[:limit]
 
-        # Sort scored moves
+        # --- STEP 5: forced defenses next ---
+        if defending:
+            return defending[:limit]
+
+        # --- STEP 6: best heuristic moves ---
         scored.sort(key=lambda x: x[1], reverse=True)
-        candidates = [pos for pos, score in scored[:limit]]
+        top = [pos for pos, _ in scored[:limit]]
 
-        # Fix
-        if len(candidates) == 0:
-            # find the first empty cell as safe fallback
-            for i in range(1, len(board) - 1):
-                for j in range(1, len(board[i]) - 1):
-                    if board[i][j] == Defines.NOSTONE:
-                        return [((i, j), None)]
-            # full board (draw)
-            return []
+        # --- STEP 7: generate pairs ---
+        pairs = []
+        for a in range(len(top)):
+            for b in range(a + 1, len(top)):
+                pairs.append((top[a], top[b]))
 
-        # Create move pairs
-        candidate_pairs = []
-        for i in range(len(candidates)):
-            for j in range(i+1, len(candidates)):
-                candidate_pairs.append((candidates[i], candidates[j]))
+        if not pairs:
+            return [(top[0], None)]
 
-        # Fix 2
-        if len(candidate_pairs) == 0:
-            return [(candidates[0], None)]
+        return pairs
 
-        return candidate_pairs
 
     # MIN-MAX ALGO
     def min_max(self, board, depth, color, maxi_player):

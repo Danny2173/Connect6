@@ -243,36 +243,60 @@ def count_open_ends(board, chain, color):
 
 # Find live threats (chains with open ends)
 
-def find_live_threats(board, color, min_length = 3):
+def find_live_threats(board, color, min_length=3):
 
-    # Initialize 
-    open_threats = []
-    visited = set()
-    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+    threats = []
+    directions = [(1,0), (0,1), (1,1), (1,-1)]
 
-    # For each position
-    for i in range(1, len(board) - 1):
-        for j in range(1, len(board[i]) - 1):
-            # If position not visited 
-            if board[i][j] != color or (i, j) in visited:
+    for i in range(1, 19):
+        for j in range(1, 19):
+
+            if board[i][j] != color:
                 continue
 
-            # explore each direction, starting a chain
-            for direction_x, direction_y in directions:
-                chain = [(i, j)]
-                x, y = i + direction_x, j + direction_y
+            for dx, dy in directions:
 
-                # Extend while stones continue in this direction
-                while board[x][y] == color:
-                    chain.append((x, y))
-                    visited.add((x, y))
-                    x += direction_x
-                    y += direction_y
+                chain = [(i,j)]
 
-                # If length of chain satisfies min length and has open end
-                if len(chain) >= min_length:
-                    open_ends = count_open_ends(board, chain, color)
-                    if open_ends > 0:
-                        open_threats.append((chain, open_ends))
-    return open_threats
+                # forward
+                x, y = i+dx, j+dy
+                while 1 <= x <= 18 and 1 <= y <= 18 and board[x][y] == color:
+                    chain.append((x,y))
+                    x += dx
+                    y += dy
+
+                # backward
+                x, y = i-dx, j-dy
+                while 1 <= x <= 18 and 1 <= y <= 18 and board[x][y] == color:
+                    chain.append((x,y))
+                    x -= dx
+                    y -= dy
+
+                # remove duplicates, keep chain
+                chain = list(set(chain))
+
+                if len(chain) < min_length:
+                    continue
+
+                # sort by projection along the direction
+                chain.sort(key=lambda p: (p[0]*dx + p[1]*dy))
+
+                # compute open ends
+                open_ends = 0
+
+                # forward end
+                fx, fy = chain[-1][0] + dx, chain[-1][1] + dy
+                if 1 <= fx <= 18 and 1 <= fy <= 18 and board[fx][fy] == Defines.NOSTONE:
+                    open_ends += 1
+
+                # backward end
+                bx, by = chain[0][0] - dx, chain[0][1] - dy
+                if 1 <= bx <= 18 and 1 <= by <= 18 and board[bx][by] == Defines.NOSTONE:
+                    open_ends += 1
+
+                if open_ends > 0:
+                    threats.append((len(chain), open_ends))
+
+    return threats
+
 
