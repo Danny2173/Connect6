@@ -40,8 +40,8 @@ class GameEngine:
 
     def run(self):
         msg = ""
-        # if sys.stdin.isatty():
-        #     self.on_help()
+        if sys.stdin.isatty():
+            self.on_help()
         while True:
             msg = input().strip()
             log_to_file(msg)
