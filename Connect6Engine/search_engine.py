@@ -72,8 +72,8 @@ class SearchEngine():
 
         # CHECK IF FIRST MOVE
         if self.check_first_move():
-            center = (9, 9)
-            return [((center), None)]
+            center = (10, 10)
+            return [((center), (center))]
         
         # define color
         our_stone = color
