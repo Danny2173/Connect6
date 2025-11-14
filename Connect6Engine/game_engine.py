@@ -117,9 +117,7 @@ class GameEngine:
     def search_a_move(self, ourColor, bestMove):
         start = time.perf_counter()
 
-        self.m_search_engine.before_search(
-            self.m_board, self.m_chess_type, self.m_alphabeta_depth
-        )
+        self.m_search_engine.before_search(self.m_board, ourColor, self.m_alphabeta_depth)
 
         score, best_move = self.m_search_engine.min_max(
             self.m_board, self.m_alphabeta_depth, ourColor, True
