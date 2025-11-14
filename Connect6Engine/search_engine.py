@@ -87,7 +87,7 @@ class SearchEngine():
         )
         return evaluation_score
    
-       
+
     def check_first_move(self):
         for i in range(1,len(self.m_board)-1):
             for j in range(1, len(self.m_board[i])-1):
@@ -103,61 +103,67 @@ class SearchEngine():
         return (-1,-1)
     
 
-    ## POSSIBLE MOVES (Improved next moves - Subset of 6)
+        ## POSSIBLE MOVES (Improved next moves - Subset of 6)
     def possible_moves(self, board, color, limit=6):
 
         # CHECK IF FIRST MOVE
         if self.check_first_move():
             center = (9, 9)
             return [((center), None)]
-        
-        # define color
+
         our_stone = color
         opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
-        
-        # Initialize our defensive moves list
+
         critical_threats = []
-        # Initialize scored moves list
         scored = []
 
-        # For each empty position
         for i in range(1, len(board) - 1):
             for j in range(1, len(board[i]) - 1):
                 if board[i][j] == Defines.NOSTONE:
-                    
-                    # Find longest line for both players
+
                     my_chain = longest_line(board, i, j, our_stone)
-                    # Pre-score instant win check
                     if my_chain >= 5:
-                        return [((i, j), None)] 
+                        return [((i, j), None)]
+
                     opp_chain = longest_line(board, i, j, opp_stone)
-                    # Pre-score instant loss check (collect if more than one)
                     if opp_chain >= 5:
-                        return critical_threats.append(((i, j), None))
-                    
-                    # Priority scoring system based on potential
+                        critical_threats.append(((i, j), None))
+                        continue
+
                     score = my_chain * 10 + opp_chain * 5
-                    # Ensuring moves that create chains of 4+ are prioritized
                     if my_chain >= 4:
                         score += 50
-                    # # Score is the max of both
-                    # score = max(my_chain, opp_chain)
-                    # Append to scored list
+
                     scored.append(((i, j), score))
 
-        # If there exists critical list use this for candidate pairs
+        # Threat blocks
         if critical_threats:
             return critical_threats[:limit]
-        # Sort by score descending
+
+        # Sort scored moves
         scored.sort(key=lambda x: x[1], reverse=True)
-        # Select top max moves
-        candidates = [pos for pos, score in scored[:limit]]                 
+        candidates = [pos for pos, score in scored[:limit]]
+
+        # Fix
+        if len(candidates) == 0:
+            # find the first empty cell as safe fallback
+            for i in range(1, len(board) - 1):
+                for j in range(1, len(board[i]) - 1):
+                    if board[i][j] == Defines.NOSTONE:
+                        return [((i, j), None)]
+            # full board (draw)
+            return []
 
         # Create move pairs
         candidate_pairs = []
         for i in range(len(candidates)):
             for j in range(i+1, len(candidates)):
                 candidate_pairs.append((candidates[i], candidates[j]))
+
+        # Fix 2
+        if len(candidate_pairs) == 0:
+            return [(candidates[0], None)]
+
         return candidate_pairs
 
     # MIN-MAX ALGO
@@ -182,31 +188,24 @@ class SearchEngine():
             best_move = None
             best_value = Defines.MININT
             for move1, move2 in candidate_pairs:
-                # COPY BOARD
                 board_copy = [row[:] for row in board]
 
-                # CREATE DUMMY MOVES
                 dummy_move = StoneMove()
                 dummy_move.positions[0].x, dummy_move.positions[0].y = move1
                 if move2 is not None:
                     dummy_move.positions[1].x, dummy_move.positions[1].y = move2
                 else:
-                    # IF FIRST MOVE
                     dummy_move.positions[1].x, dummy_move.positions[1].y = -1, -1
 
-                # MAKE MOVE
                 make_move(board_copy,dummy_move, color)
 
-                # SWITCH COLOR
                 if color == Defines.BLACK:
                     next_color = Defines.WHITE
                 else: 
                     next_color = Defines.BLACK
                 
-                # NEXT MOVE
                 value, _ = self.min_max(board_copy, depth - 1, next_color, maxi_player=False)
 
-                # STORE BEST VALUE
                 if value > best_value:
                     best_move = (move1, move2)
                     best_value = value
@@ -217,37 +216,31 @@ class SearchEngine():
             best_move = None
             best_value = Defines.MAXINT
             for move1, move2 in candidate_pairs:
-                # COPY BOARD
                 board_copy = [row[:] for row in board]
 
-                # CREATE DUMMY MOVES
                 dummy_move = StoneMove()
                 dummy_move.positions[0].x, dummy_move.positions[0].y = move1
                 if move2 is not None:
                     dummy_move.positions[1].x, dummy_move.positions[1].y = move2
                 else:
-                    # IF FIRST MOVE
                     dummy_move.positions[1].x, dummy_move.positions[1].y = -1, -1
 
-                # MAKE MOVE
                 make_move(board_copy,dummy_move, color)
 
-                # SWITCH COLOR
                 if color == Defines.BLACK:
                     next_color = Defines.WHITE
                 else: 
                     next_color = Defines.BLACK
 
-                # NEXT MOVE
                 value, _ = self.min_max(board_copy, depth - 1, next_color, maxi_player=True)
 
-                # STORE BEST VALUE
                 if value < best_value:
                     best_move = (move1, move2)
                     best_value = value
             
             return best_value, best_move
-        
+    
+
     # Include two new parameters alpha and beta
     def alphabeta(self, board, depth, alpha, beta, color, maxi_player):
         # Check game result
@@ -262,89 +255,124 @@ class SearchEngine():
         
         # CANDIDATE PAIRS 
         candidate_pairs = self.possible_moves(board, color)
-        if not candidate_pairs:
-            return self.evaluate_position(board, color, StoneMove()), None
+
+        # FIX: possible_moves returning None
+        if not candidate_pairs or candidate_pairs is None:
+            p1 = self.find_possible_move()
+            p2 = self.find_possible_move()
+            if p1 == p2:
+                p2 = (-1, -1)
+            return self.evaluate_position(board, color, StoneMove()), (p1, p2)
 
         # FOR MAXIMISING PLAYER
         if maxi_player:
             best_move = None
             best_value = Defines.MININT
             for move1, move2 in candidate_pairs:
-                # COPY BOARD
                 board_copy = [row[:] for row in board]
 
-                # CREATE DUMMY MOVES
                 dummy_move = StoneMove()
                 dummy_move.positions[0].x, dummy_move.positions[0].y = move1
                 if move2 is not None:
                     dummy_move.positions[1].x, dummy_move.positions[1].y = move2
                 else:
-                    # IF FIRST MOVE
                     dummy_move.positions[1].x, dummy_move.positions[1].y = -1, -1
 
-                # MAKE MOVE
                 make_move(board_copy,dummy_move, color)
 
-                # SWITCH COLOR
                 if color == Defines.BLACK:
                     next_color = Defines.WHITE
                 else: 
                     next_color = Defines.BLACK
                 
-                # NEXT MOVE - Update to include alpha and beta
                 value, _ = self.alphabeta(board_copy, depth - 1, alpha, beta, next_color, maxi_player=False)
 
-                # STORE BEST VALUE
                 if value > best_value:
                     best_move = (move1, move2)
                     best_value = value
 
-                # Update alpha then prune if necessary
                 alpha = max(alpha, best_value)
                 if alpha >= beta:
                     break
-            return best_value, best_move
+
+            if not candidate_pairs:
+                fallback = self.ensure_two_moves(None)
+                return self.evaluate_position(board, color, StoneMove()), fallback
+
+            return best_value, self.ensure_two_moves(best_move)
         
         # FOR MINIMIZING PLAYER
         else:
             best_move = None
             best_value = Defines.MAXINT
             for move1, move2 in candidate_pairs:
-                # COPY BOARD
                 board_copy = [row[:] for row in board]
 
-                # CREATE DUMMY MOVES
                 dummy_move = StoneMove()
                 dummy_move.positions[0].x, dummy_move.positions[0].y = move1
                 if move2 is not None:
                     dummy_move.positions[1].x, dummy_move.positions[1].y = move2
                 else:
-                    # IF FIRST MOVE
                     dummy_move.positions[1].x, dummy_move.positions[1].y = -1, -1
 
-                # MAKE MOVE
                 make_move(board_copy,dummy_move, color)
 
-                # SWITCH COLOR
                 if color == Defines.BLACK:
                     next_color = Defines.WHITE
                 else: 
                     next_color = Defines.BLACK
 
-                # NEXT MOVE - Update to include alpha and beta
                 value, _ = self.alphabeta(board_copy, depth - 1, alpha, beta, next_color, maxi_player=True)
 
-                # STORE BEST VALUE
                 if value < best_value:
                     best_move = (move1, move2)
                     best_value = value
 
-                # Update beta and prune if necessary
                 beta = min(beta, best_value)
                 if alpha >= beta:
                     break
-            return best_value, best_move
+            
+            if not candidate_pairs:
+                fallback = self.ensure_two_moves(None)
+                return self.evaluate_position(board, color, StoneMove()), fallback
+
+            return best_value, self.ensure_two_moves(best_move)
         
+    def ensure_two_moves(self, move_pair):
+        """Ensure returned move has two valid, distinct positions."""
+
+        # If no move found → return ANY legal 2-stone move
+        if move_pair is None:
+            p1 = self.find_possible_move()
+            p2 = self.find_second_empty(p1)
+            return (p1, p2)
+
+        (m1, m2) = move_pair
+
+        # If m1 is None → fallback
+        if m1 is None:
+            p1 = self.find_possible_move()
+            p2 = self.find_second_empty(p1)
+            return (p1, p2)
+
+        # If m2 is None → pick second empty
+        if m2 is None:
+            m2 = self.find_second_empty(m1)
+
+        # If both are same → pick a new second
+        if m1 == m2:
+            m2 = self.find_second_empty(m1)
+
+        return (m1, m2)
+
+    def find_second_empty(self, avoid):
+        ax, ay = avoid
+        for i in range(1, 19):
+            for j in range(1, 19):
+                if (i, j) != avoid and self.m_board[i][j] == Defines.NOSTONE:
+                    return (i, j)
+        return (-1, -1)
+
 def flush_output():
     import sys
     sys.stdout.flush()

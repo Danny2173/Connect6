@@ -169,25 +169,42 @@ def half_move_evaluation(board, i, j, color):
     w_self = 3.0    # multiplier for own stone
     score = 0.0
 
+    H = len(board)
+    W = len(board[0])
+
     for direction_x, direction_y in directions:
         # Forward and backward
         for sign in [1, -1]:
             value = 1.0
             x, y = i + direction_x*sign, j + direction_y*sign
+
             # 5 steps outward 
             for step in range(1, 6):
+
+                # Safety check (GUI board range is 1 to 18)
+                if x < 1 or x > 18 or y < 1 or y > 18:
+                    break
+
+                cell = board[x][y]
+
+                if cell == Defines.BORDER:
+                    break
                 # If cell empty multiple by small decay
-                if board[x][y] == Defines.NOSTONE:
+                elif cell == Defines.NOSTONE:
                     value *= epsilon
                 # If contains players own stone multiply by higher weight
-                elif board[x][y] == our_stone:
+                elif cell == our_stone:
                     value *= w_self
-                else:  # opp stone 
+                # opp stone 
+                else:
                     break
+
                 x += direction_x*sign
                 y += direction_y*sign
+
             # Total score
             score += value
+
     return score
 
     # Finding how many open ends in threat
@@ -258,3 +275,4 @@ def find_live_threats(board, color, min_length = 3):
                     if open_ends > 0:
                         open_threats.append((chain, open_ends))
     return open_threats
+
