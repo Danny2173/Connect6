@@ -135,7 +135,7 @@ class SearchEngine():
 
         # CHECK IF FIRST MOVE
         if self.check_first_move():
-            center = (9, 9)
+            center = (10, 10)
             return [((center, center))]
         # Select subset
         candidates = empty_list[:max]
