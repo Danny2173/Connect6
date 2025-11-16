@@ -126,6 +126,83 @@ class SearchEngine():
         our_stone = color
         opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
         
+        # immediate threat
+        # Use neighbor-based region instead of full board
+        empty_cells = set()
+        for x in range(1, len(board)-1):
+            for y in range(1, len(board)-1):
+                if board[x][y] != Defines.NOSTONE:
+                    for dx in range(-2,3):
+                        for dy in range(-2,3):
+                            nx, ny = x+dx, y+dy
+                            if isValidPos(nx,ny) and board[nx][ny] == Defines.NOSTONE:
+                                empty_cells.add((nx,ny))
+
+        empty_cells = list(empty_cells)
+
+
+        opponent_forced_win_points = set()
+
+        for i in range(len(empty_cells)):
+            for j in range(i+1, len(empty_cells)):
+                (x1, y1) = empty_cells[i]
+                (x2, y2) = empty_cells[j]
+
+                # simulate opponent placing two stones
+                board[x1][y1] = opp_stone
+                board[x2][y2] = opp_stone
+
+                mv = StoneMove()
+                mv.positions[0].x, mv.positions[0].y = x1, y1
+                mv.positions[1].x, mv.positions[1].y = x2, y2
+
+                if is_win_by_premove(board, mv):
+                    opponent_forced_win_points.add((x1, y1))
+                    opponent_forced_win_points.add((x2, y2))
+
+                # undo
+                board[x1][y1] = Defines.NOSTONE
+                board[x2][y2] = Defines.NOSTONE
+
+
+        for i in range(len(empty_cells)):
+            for j in range(i+1, len(empty_cells)):
+                (x1, y1) = empty_cells[i]
+                (x2, y2) = empty_cells[j]
+
+                # simulate
+                board[x1][y1] = our_stone
+                board[x2][y2] = our_stone
+
+                mv = StoneMove()
+                mv.positions[0].x, mv.positions[0].y = x1, y1
+                mv.positions[1].x, mv.positions[1].y = x2, y2
+
+                if is_win_by_premove(board, mv):
+                    board[x1][y1] = board[x2][y2] = Defines.NOSTONE
+                    return [((x1, y1), (x2, y2))]
+
+                board[x1][y1] = board[x2][y2] = Defines.NOSTONE
+
+            if len(opponent_forced_win_points) >= 2:
+                threats = list(opponent_forced_win_points)
+                defensive_pairs = []
+                for i in range(len(threats)):
+                    for j in range(i+1, len(threats)):
+                        defensive_pairs.append((threats[i], threats[j]))
+                return defensive_pairs[:limit]
+
+            # Case B: One threat → MUST block it with one stone + another anywhere
+            if len(opponent_forced_win_points) == 1:
+                t = list(opponent_forced_win_points)[0]  # the must-block coordinate
+
+                # pair it with any empty cell
+                for x2, y2 in empty_cells:
+                    if (x2, y2) != t:
+                        return [(t, (x2, y2))]
+
+                # fallback
+                return [(t, t)]
         # ADD neighbour pruning
         neighbour_moves = set()
 
@@ -154,11 +231,11 @@ class SearchEngine():
             my_chain = longest_line(board, i, j, our_stone)
             # Pre-score instant win check
             if my_chain >= 6:
-                return [((i, j), None)] 
+                return [((i, j), (i, j))] 
             opp_chain = longest_line(board, i, j, opp_stone)
             # Pre-score instant loss check (collect if more than one)
             if opp_chain >= 6:
-                critical_threats.append(((i, j), None))
+                critical_threats.append(((i, j), (i, j)))
                 continue
             
             # Priority scoring system based on potential
