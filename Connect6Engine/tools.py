@@ -176,12 +176,14 @@ def half_move_evaluation(board, i, j, color):
             x, y = i + direction_x*sign, j + direction_y*sign
             # 5 steps outward 
             for step in range(1, 6):
-                # If cell empty multiple by small decay
+                if not isValidPos(x, y):
+                    break
+                    # If cell empty multiple by small decay
                 if board[x][y] == Defines.NOSTONE:
-                    value *= epsilon
-                # If contains players own stone multiply by higher weight
+                        value *= epsilon
+                    # If contains players own stone multiply by higher weight
                 elif board[x][y] == our_stone:
-                    value *= w_self
+                        value *= w_self
                 else:  # opp stone 
                     break
                 x += direction_x*sign

@@ -65,19 +65,17 @@ class SearchEngine():
                 if board[i][j] == our_stone:
                     # Find longest line for our color
                     chain_length = longest_line(board, i, j, our_stone)
-                    # Error prevention
                     if chain_length > 5:
                         chain_length = 5
-                    # Store chain length
                     my_chains[chain_length] += 1
+
                 elif board[i][j] == opp_stone:
                     # Find longest line for opponent color
                     chain_length = longest_line(board, i, j, opp_stone)
-                    # Error prevention
                     if chain_length > 5:
                         chain_length = 5
-                    # Store chain length
                     opp_chains[chain_length] += 1
+
         
         # Calculating weighted score
         my_score = sum(weights[c] * my_chains[c] for c in my_chains)
@@ -155,11 +153,11 @@ class SearchEngine():
             # Find longest line for both players
             my_chain = longest_line(board, i, j, our_stone)
             # Pre-score instant win check
-            if my_chain >= 5:
+            if my_chain >= 6:
                 return [((i, j), None)] 
             opp_chain = longest_line(board, i, j, opp_stone)
             # Pre-score instant loss check (collect if more than one)
-            if opp_chain >= 5:
+            if opp_chain >= 6:
                 critical_threats.append(((i, j), None))
                 continue
             
@@ -180,6 +178,31 @@ class SearchEngine():
         scored.sort(key=lambda x: x[1], reverse=True)
         # Select top max moves
         candidates = [pos for pos, score in scored[:limit]]                 
+
+        # check if any pair of moves is an instant win
+        for a in candidates:
+            for b in candidates:
+                if a == b:
+                    continue
+
+                # simulate pair
+                ax, ay = a
+                bx, by = b
+                board[ax][ay] = our_stone
+                board[bx][by] = our_stone
+
+                # use StoneMove for checking win
+                mv = StoneMove()
+                mv.positions[0].x, mv.positions[0].y = ax, ay
+                mv.positions[1].x, mv.positions[1].y = bx, by
+
+                if is_win_by_premove(board, mv):
+                    # undo simulation before returning
+                    board[ax][ay] = board[bx][by] = Defines.NOSTONE
+                    return [(a, b)]
+
+                # undo simulation
+                board[ax][ay] = board[bx][by] = Defines.NOSTONE
 
         candidate_pairs = []
         for i in range(len(candidates)):
