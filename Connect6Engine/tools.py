@@ -140,23 +140,28 @@ def longest_line(board, x, y, color):
     directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
     # initialize length
     length = 0
+
     # For each direction, count the number of consecutive stones
     for direction_x, direction_y in directions:
         count = 1
+
+        # move in the positive direction
         i, j = x + direction_x, y + direction_y
-        # Check for valid position and ove in the positive direction
         while isValidPos(i, j) and board[i][j] == color:
             count += 1
             i += direction_x
             j += direction_y
+
+        # move in the negative direction
         i, j = x - direction_x, y - direction_y
-        # Check for valid position and move in the negative direction
         while isValidPos(i, j) and board[i][j] == color:
             count += 1
             i -= direction_x
             j -= direction_y
+
         # Update maximum length
         length = max(length, count)
+
     return length
 
 def half_move_evaluation(board, i, j, color):

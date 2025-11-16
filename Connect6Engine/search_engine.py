@@ -121,28 +121,28 @@ class SearchEngine():
         if self.check_first_move():
             center = (10, 10)
             return [((center, center))]
-        
+
         # define color
         our_stone = color
         opp_stone = Defines.BLACK if color == Defines.WHITE else Defines.WHITE
-        
+
         # immediate threat
         # Use neighbor-based region instead of full board
         empty_cells = set()
         for x in range(1, len(board)-1):
             for y in range(1, len(board)-1):
                 if board[x][y] != Defines.NOSTONE:
-                    for dx in range(-2,3):
-                        for dy in range(-2,3):
+                    for dx in range(-1,2):
+                        for dy in range(-1,2):
                             nx, ny = x+dx, y+dy
                             if isValidPos(nx,ny) and board[nx][ny] == Defines.NOSTONE:
                                 empty_cells.add((nx,ny))
 
         empty_cells = list(empty_cells)
 
-
         opponent_forced_win_points = set()
 
+        # check if opponent has any 2-stone forced win
         for i in range(len(empty_cells)):
             for j in range(i+1, len(empty_cells)):
                 (x1, y1) = empty_cells[i]
@@ -164,7 +164,7 @@ class SearchEngine():
                 board[x1][y1] = Defines.NOSTONE
                 board[x2][y2] = Defines.NOSTONE
 
-
+        # check if we have any 2-stone instant win
         for i in range(len(empty_cells)):
             for j in range(i+1, len(empty_cells)):
                 (x1, y1) = empty_cells[i]
@@ -184,77 +184,75 @@ class SearchEngine():
 
                 board[x1][y1] = board[x2][y2] = Defines.NOSTONE
 
-            if len(opponent_forced_win_points) >= 2:
-                threats = list(opponent_forced_win_points)
-                defensive_pairs = []
-                for i in range(len(threats)):
-                    for j in range(i+1, len(threats)):
-                        defensive_pairs.append((threats[i], threats[j]))
-                return defensive_pairs[:limit]
+        # after weve checked all pairs, handle opponent forced wins
+        if len(opponent_forced_win_points) >= 2:
+            threats = list(opponent_forced_win_points)
+            defensive_pairs = []
+            for i in range(len(threats)):
+                for j in range(i+1, len(threats)):
+                    defensive_pairs.append((threats[i], threats[j]))
+            return defensive_pairs[:limit]
 
-            # Case B: One threat → MUST block it with one stone + another anywhere
-            if len(opponent_forced_win_points) == 1:
-                t = list(opponent_forced_win_points)[0]  # the must-block coordinate
+        # One threat block it with one stone + another anywhere
+        if len(opponent_forced_win_points) == 1:
+            t = list(opponent_forced_win_points)[0]  # the must-block coordinate
 
-                # pair it with any empty cell
-                for x2, y2 in empty_cells:
-                    if (x2, y2) != t:
-                        return [(t, (x2, y2))]
+            # pair it with any empty cell
+            for x2, y2 in empty_cells:
+                if (x2, y2) != t:
+                    return [(t, (x2, y2))]
 
-                # fallback
-                return [(t, t)]
+            # fallback
+            return [(t, t)]
+
         # ADD neighbour pruning
-        neighbour_moves = set()
-
-        # for each playable cell
-        for x in range(1, len(board)-1):
-            for y in range(1, len(board)-1):
-                if board[x][y] != Defines.NOSTONE:
-                    # scan with a radius 2 near stones
-                    for dx in range(-2, 3):
-                        for dy in range(-2, 3):
-                            nx, ny = x + dx, y + dy
-                            if isValidPos(nx, ny) and board[nx][ny] == Defines.NOSTONE:
-                                neighbour_moves.add((nx, ny))
+        neighbour_moves = set(empty_cells)  
 
         # fallback early in game
         if not neighbour_moves:
             neighbour_moves = {(10, 10)}
+
         # Initialize our defensive moves list
         critical_threats = []
         # Initialize scored moves list
         scored = []
 
         # For each empty position
-        for (i, j) in neighbour_moves:           
-            # Find longest line for both players
+        for (i, j) in neighbour_moves:
+            # simulate 1 stone placement for both players
+            board[i][j] = our_stone
             my_chain = longest_line(board, i, j, our_stone)
+            board[i][j] = Defines.NOSTONE
+
+            board[i][j] = opp_stone
+            opp_chain = longest_line(board, i, j, opp_stone)
+            board[i][j] = Defines.NOSTONE
+
             # Pre-score instant win check
             if my_chain >= 6:
-                return [((i, j), (i, j))] 
-            opp_chain = longest_line(board, i, j, opp_stone)
+                return [((i, j), (i, j))]
+
             # Pre-score instant loss check (collect if more than one)
             if opp_chain >= 6:
                 critical_threats.append(((i, j), (i, j)))
                 continue
-            
+
             # Priority scoring system based on potential
             score = my_chain * 10 + opp_chain * 5
             # Ensuring moves that create chains of 4+ are prioritized
             if my_chain >= 4:
                 score += 50
-            # # Score is the max of both
-            # score = max(my_chain, opp_chain)
-            # Append to scored list
+
             scored.append(((i, j), score))
 
         # If there exists critical list use this for candidate pairs
         if critical_threats:
             return critical_threats[:limit]
+
         # Sort by score descending
         scored.sort(key=lambda x: x[1], reverse=True)
         # Select top max moves
-        candidates = [pos for pos, score in scored[:limit]]                 
+        candidates = [pos for pos, score in scored[:limit]]
 
         # check if any pair of moves is an instant win
         for a in candidates:
@@ -291,6 +289,7 @@ class SearchEngine():
                     candidate_pairs.append((candidates[i], candidates[j]))
 
         return candidate_pairs
+
 
     # MIN-MAX ALGO
     def min_max(self, board, depth, color, maxi_player):
