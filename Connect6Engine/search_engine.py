@@ -121,8 +121,8 @@ class SearchEngine():
 
         # CHECK IF FIRST MOVE
         if self.check_first_move():
-            center = (9, 9)
-            return [((center), None)]
+            center = (10, 10)
+            return [((center, center))]
         
         # define color
         our_stone = color
@@ -144,7 +144,7 @@ class SearchEngine():
 
         # fallback early in game
         if not neighbour_moves:
-            neighbour_moves = {(9, 9)}
+            neighbour_moves = {(10, 10)}
         # Initialize our defensive moves list
         critical_threats = []
         # Initialize scored moves list
@@ -181,11 +181,15 @@ class SearchEngine():
         # Select top max moves
         candidates = [pos for pos, score in scored[:limit]]                 
 
-        # Create move pairs
         candidate_pairs = []
         for i in range(len(candidates)):
             for j in range(i+1, len(candidates)):
-                candidate_pairs.append((candidates[i], candidates[j]))
+                x1, y1 = candidates[i]
+                x2, y2 = candidates[j]
+                # check:
+                if board[x1][y1] == Defines.NOSTONE and board[x2][y2] == Defines.NOSTONE and (x1, y1) != (x2, y2):
+                    candidate_pairs.append((candidates[i], candidates[j]))
+
         return candidate_pairs
 
     # MIN-MAX ALGO
